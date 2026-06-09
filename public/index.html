@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cyber Threat Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans">
+
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <h1 class="text-xl font-mono font-bold tracking-wider text-gray-200">GEMINI // LOG_FORENSICS_GATEWAY</h1>
+        </div>
+        <span class="text-xs font-mono px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-gray-400">STATUS: ACTIVE_MONITORING</span>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <section class="lg:col-span-2 space-y-4">
+            <h2 class="text-sm font-mono uppercase tracking-widest text-gray-400">Live Threat Analysis Stream</h2>
+            <div id="logStream" class="space-y-3">
+                <div class="p-6 text-center border border-dashed border-gray-800 rounded-xl text-gray-500 font-mono text-sm py-12">
+                    Waiting for incoming pipeline traffic... Shoot logs via PowerShell to ignite stream.
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-4">
+            <h2 class="text-sm font-mono uppercase tracking-widest text-gray-400">Security Insights</h2>
+            <div class="bg-gray-900 border border-gray-800 p-6 rounded-xl space-y-4">
+                <div class="border-b border-gray-800 pb-3">
+                    <h3 class="text-lg font-semibold">System Audit Summary</h3>
+                    <p class="text-xs text-gray-400">Automatically tracking system state profiles.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4 font-mono">
+                    <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg">
+                        <span class="text-xs text-gray-500 block">TOTAL LOGS</span>
+                        <span id="totalCounter" class="text-2xl font-bold text-blue-400">0</span>
+                    </div>
+                    <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg">
+                        <span class="text-xs text-gray-500 block">HIGH RISK</span>
+                        <span id="highRiskCounter" class="text-2xl font-bold text-red-500">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const logs = await response.json();
+                
+                const streamContainer = document.getElementById('logStream');
+                const totalCounter = document.getElementById('totalCounter');
+                const highRiskCounter = document.getElementById('highRiskCounter');
+                
+                totalCounter.innerText = logs.length;
+                highRiskCounter.innerText = logs.filter(l => l.forensics.riskScore >= 7).length;
+
+                if (logs.length === 0) return;
+
+                // Render logs dynamically using responsive conditional color arrays
+                streamContainer.innerHTML = logs.map(log => {
+                    const score = log.forensics.riskScore;
+                    let borderClass = 'border-gray-800 bg-gray-900/40';
+                    let badgeClass = 'bg-gray-800 text-gray-400';
+
+                    if (score >= 8) {
+                        borderClass = 'border-red-900/50 bg-red-950/10 shadow-lg shadow-red-950/5';
+                        badgeClass = 'bg-red-900/30 text-red-400 border border-red-800/40 animate-pulse';
+                    } else if (score >= 4) {
+                        borderClass = 'border-yellow-900/50 bg-yellow-950/10';
+                        badgeClass = 'bg-yellow-900/30 text-yellow-400 border border-yellow-800/40';
+                    }
+
+                    return `
+                        <div class="border ${borderClass} p-5 rounded-xl font-mono text-sm transition-all duration-300 hover:scale-[1.01]">
+                            <div class="flex flex-wrap justify-between items-start gap-2 mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs px-2 py-0.5 rounded ${badgeClass}">SCORE: ${score}/10</span>
+                                    <span class="font-bold text-gray-300">${log.raw.method}</span>
+                                    <span class="text-gray-400">${log.raw.endpoint}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">${new Date(log.raw.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mb-2">
+                                <span class="text-gray-600">IP:</span> ${log.raw.ipAddress} | 
+                                <span class="text-gray-600">STATUS:</span> ${log.raw.statusCode} | 
+                                <span class="text-gray-600">AGENT:</span> ${log.raw.userAgent}
+                            </div>
+                            <div class="bg-gray-950/60 border border-gray-900 p-3 rounded-lg text-gray-300 mt-2 text-xs leading-relaxed">
+                                <strong class="text-gray-400 uppercase tracking-wider text-[10px] block mb-1">AI Forensics [${log.forensics.classification}]:</strong>
+                                ${log.forensics.summary}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Dashboard connection error:", err);
+            }
+        }
+
+        // Poll the server backend every 2 seconds for fresh updates
+        setInterval(fetchLogs, 2000);
+        fetchLogs(); // Initial execution run
+    </script>
+</body>
+</html>
